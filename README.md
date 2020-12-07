@@ -6,6 +6,8 @@ This repository is an excerpt from an end of course team project for Duke's STA 
 (Statistical Programming) course. The files contained are meant to showcase my
 contribution to the project (the development of the animated plots).
 
+To view a representative animation, please see our Shiny [app](https://rob-kravec.shinyapps.io/nfl_dash/?_ga=2.56872490.1609727935.1605974938-1036932365.1605974938).
+
 ## Inspiration
 
 Our project is inspired by the NFL's Big Data Bowl 2021 on Kaggle, which challenges teams to 
@@ -71,8 +73,6 @@ contained within this repository. Rather, the data set used for generating the
 animated plots contains the predictions.
 
 ## Results
-
-The shiny app can be viewed at this [link](https://rob-kravec.shinyapps.io/nfl_dash/?_ga=2.56872490.1609727935.1605974938-1036932365.1605974938).
 
 We should note that the predictive performance of our model is very poor. This is not
 unexpected as almost all of our feature variables were uncorrelated with response
