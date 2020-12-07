@@ -1,4 +1,10 @@
-# STA 523 :: Project - Team CRYM
+# NFL Animations
+
+## Context
+
+This repository is an excerpt from an end of course team project for Duke's STA 523 
+(Statistical Programming) course. The files contained are meant to showcase my
+contribution to the project (the development of the animated plots).
 
 ## Inspiration
 
@@ -34,17 +40,6 @@ Please see below for a couple of static plots, which demonstrate the richness of
 
 ## Methods
 
-To reproduce this work, one can run these R scripts in the following order
-
-   1. Data_processing/sample_data.R
-   2. Data_processing/tracking_features.R
-   3. Data_processing/data_filtered.R
-   4. Data_processing/gen_test_validation_sets.R
-   5. Models/GradientBoostingModel.R
-   6. Models/quantile_reg.R
-   
-This repository already contains the output of these scripts, and the Shiny app can be launched from the nfl_dash folder.
-
 #### Animated plotting
 
 The Tracking data files are ~ 2GB in total, which is too large to include on shinyapp.io 
@@ -63,22 +58,6 @@ chosen to be displayed in the plot.
 To build our predictive model we wanted to extract as much information from 
 our play data as well the player tracking data. 
 
-From the play data we engineered features that counted the number of players
-per position on the field for the play. We include yards to go for a first down,
-the quarter, the down, the team in possession of the football, the position
-on the field, the offensive formation, number of pass rushers, number of 
-defenders in the box, the visitor and home score, and the type of quarter back
-drop back.
-
-From the player tracking data we generated features to convey defensive 
-spatial information when the ball was snapped. The variables created include 
-the individual variances for the x and y coordinates as well their covariances
-for the defensive players on the field. We also calculate the average distance
-from the line of scrimmage for each defensive position on the field.
-On top of this we used the player data to calculate the average age, height, 
-and weight of the defensive backs and line backers on the field for each play.
-The feature generation from tracking data can be found in `tracking_features.R`.
-
 In the model development stage we attempted a random forest, gradient boosted
 tree, as well a elastic net regression. Each method produce dissatisfying results
 generating an root mean squared error of no less than 9. Given the difficulty 
@@ -87,41 +66,15 @@ predict the 12.5% quantile and the 87.5% quantile to estimate a 75% confidence
 region for the expected yards gained. For our point estimate we model the 
 median yards gained using a quantile regression. 
 
-For the gradient boosted model, in addition to the predictors we used for the
-linear regression model, we also included variables that are factors. Some of 
-the features include `quarter`, `down`, `week`, `possessionTeam`,
-`offenseFormation`, `defendersInTheBox`, `typeDropback`, and etc., and we are
-using them to predict `offensePlayResult`.
-We found that the gradient boosted model has the relatively smaller RMSE, though 
-it's still pretty large for a predictive result. We can conclude that it is
-difficult to predict the yards gained by the offense (excluding penalty yardage)
-for the NFL games, which is reasonable since the plays are very competitive.
-We created a prediction interval for this model in particular using the 
-`offensePlayResult` in the test set plus or minus the RMSE. The point estimates
-and the prediction intervals are all included in the 
-`merged_data_prediction_boost.csv` file under the `data` folder.
-For the animation in the Shiny app, however, we decided to use the quantiles 
-and the point estimates we got from the quantile regression because it is 
-easier to interpret with a fixed confidence level about the predictions,
-and it is also more intuitive for the app users to understand.
-
+** Please note that the files associated with our predictive model are not
+contained within this repository. Rather, the data set used for generating the
+animated plots contains the predictions.
 
 ## Results
 
 The shiny app can be viewed at this [link](https://rob-kravec.shinyapps.io/nfl_dash/?_ga=2.56872490.1609727935.1605974938-1036932365.1605974938).
 
-When evaluating our model on the hold out test set, 47% of the new observations
-were within their 75% predicted region (constructed by the estimated quantiles). 
-In this case the test set was taken from our training data to evaluate or model.
-
-When using the entire training set to train the quantile regressions and 
-using the true validation, the plays held out to generate the animation, 83%
-of the data point were within their 75% region. Note that these
-estimates might change with the sample generated. It should also be noted that
-the result may be unstable as the quantile regression warns the solution is not
-unique. This is an area for future exploration and improvement.
-
-To conclude, the predictive performance of our model is very poor. This is not
+We should note that the predictive performance of our model is very poor. This is not
 unexpected as almost all of our feature variables were uncorrelated with response
 variable, the yards gained on the play. There are a couple points to consider.
 
