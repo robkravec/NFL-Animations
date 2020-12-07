@@ -89,6 +89,11 @@ are between 0 and 10 yards.
 It is important to mention that this is a difficult problem to solve and, in 
 fact, front offices have yet to find an adequate solution.
 
+## Acknowledgements
+
+This project was completed as part of STA 523 (Statistical Programming) at Duke, taught by Professor Shawn Santo. 
+Three of my classmates, Marc Brooks, Yue Han, and Cathy Shi collaborated with me on this project.
+
 ## References
 
 - NFL Big Data Bowl 2021 (data, notebooks of competition competitors for 
