@@ -1,0 +1,264 @@
+---
+title: "EDA plot"
+author: "Yue Han"
+date: "11/21/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_knit$set(root.dir = "../")
+```
+
+```{r package, include=FALSE}
+library(vroom)
+library(tidyverse)
+```
+
+First of all, we load in some data from `merged_data.csv.gz`.
+
+```{r load in data, results=FALSE}
+if (!exists("track_data")) {
+  track_data <- vroom("data/merged_data.csv.gz")
+}
+colnames(track_data)
+```
+
+Then we filtered the data according by WR's route: we only keep the play that at
+least one WR's route is "GO", "CROSS", "SCREEN", "OUT" or "POST".
+
+```{r subset data based on route}
+# we only want to keep play whose route includes go, cross, screen, out or post
+# we need to be careful when filtering data since only WR has route info
+route_wanted <- c("GO", "CROSS", "SCREEN", "OUT", "POST")
+
+# there are several WR in each play
+# the following choose plays if there is one WR's route meets our requirement
+included_play_id <- track_data %>%
+  dplyr::select(playId, gameId, route) %>%
+  filter(route %in% route_wanted) %>%
+  dplyr::select(-route) %>%
+  unique()
+
+filtered_play_1 <- track_data %>%
+  inner_join(included_play_id, by = c("playId", "gameId"))
+
+# the following choose plays if all WR's route meets our requirement
+route_unwanted <- track_data %>%
+  dplyr::select(route) %>%
+  unique() %>%
+  drop_na() %>%
+  filter(!route %in% route_wanted) %>%
+  pull()
+
+excluded_play_id <- track_data %>%
+  dplyr::select(playId, gameId, route) %>%
+  filter(route %in% route_unwanted) %>%
+  dplyr::select(-route) %>%
+  unique() %>%
+  mutate(if_drop = TRUE)
+
+filtered_play_2 <- filtered_play_1
+#   left_join(excluded_play_id, by = c("playId", "gameId")) %>%
+#   filter(is.na(if_drop)) %>%
+#   dplyr::select(-if_drop)
+```
+
+Then we filter the play by the `offensePlayResult`, whihc is the yards that 
+offense team gained, excluding penalty yardage.
+
+We try 50 yards as the benchmark. It turns out to be only one play that 
+satisfied our criteria.
+
+```{r subset data based on play result}
+# first we filter complete pass
+filtered_play_3 <- filtered_play_2 %>%
+  filter(passResult == "C")
+
+# display by gained yards
+filtered_play_3 %>% 
+  dplyr::select(playId, gameId,offensePlayResult) %>%
+  unique() %>%
+  arrange(desc(offensePlayResult))
+
+# then we filter offense play result that is bigger than 50
+filtered_play_4 <- filtered_play_3 %>%
+  filter(offensePlayResult > 50)
+
+# there is only one game that satisfy above requirement
+filtered_play_4 %>%
+  dplyr::select(playId, gameId,offensePlayResult) %>%
+  unique()
+```
+
+```{r slightly modified ggfootball, include=FALSE}
+ggfootball_for_eda <- function(df, aes) {
+
+  # Create data frames to add lines to field, hash marks, and 10-yard labels
+  five_yard_df <- data.frame(x = seq(from = 15, to = 105, by = 5))
+  hash_df <- data.frame(x = 11:109)
+  yard_labels_df <- data.frame(
+    x = seq(from = 20, to = 100, by = 10),
+    y = rep(x = 4, n = 9),
+    digits = c(
+      seq(from = 10, to = 50, by = 10),
+      seq(from = 40, to = 10, by = -10)
+    )
+  )
+  
+    # Create data frame for annotations
+  annotate_df <- df %>% 
+    group_by(frameId) %>% 
+    slice(1) %>% 
+    mutate(down_suffix = case_when(
+      down == 1 ~ "st",
+      down == 2 ~ "nd",
+      down == 3 ~ "rd",
+      down == 4 ~ "th"),
+      quarter_suffix = case_when(
+        quarter == 1 ~ "st",
+        quarter == 2 ~ "nd",
+        quarter == 3 ~ "rd",
+        quarter == 4 ~ "th"
+      ),
+      play_start = paste0(quarter, quarter_suffix, " Quarter, ", down,
+                          down_suffix, " and ", yardsToGo,
+                          " from the ", yardlineSide, " ", yardlineNumber),
+      timing = paste0("Quarter: ", quarter,
+                      ", Game clock: ", game_clock_abr),
+      title_string = paste0("Week ", week, ", ", gameDate, " at ",
+                            game_time, " | ", homeTeamAbbr, " vs. ",
+                            visitorTeamAbbr),
+      score = paste0(homeTeamAbbr, ": ", preSnapHomeScore, " | ",
+                     visitorTeamAbbr, ": ", preSnapVisitorScore))
+  
+  text_size <- 3
+
+  ggplot(data = df) +
+    
+    # Make middle of field green
+    geom_rect(
+      data = NULL,
+      aes(xmin = 10, xmax = 110, ymin = 0, ymax = 53.3),
+      fill = "green4", color = "black", alpha = 0.1
+    ) +
+
+    # Add endzones
+    geom_rect(
+      data = NULL,
+      aes(xmin = 0, xmax = 10, ymin = 0, ymax = 53.3),
+      fill = "darkslategray", color = "black", alpha = 0.1
+    ) +
+    geom_rect(
+      data = NULL,
+      aes(xmin = 110, xmax = 120, ymin = 0, ymax = 53.3),
+      fill = "darkslategray", color = "black", alpha = 0.1
+    ) +
+
+    # Format gridlines, tick marks, tick labels, and border of plot window
+    theme_bw() +
+    theme(
+      panel.grid.minor = element_blank(),
+      panel.grid.major = element_blank(),
+      panel.border = element_blank(),
+      axis.text = element_blank(),
+      axis.ticks = element_blank(),
+      axis.title = element_blank(),
+      text = element_text(size = 12),
+      # , legend.position = "none" # Optional hiding of legend
+    ) +
+
+    # Add vertical lines at each 5-yard increment
+    geom_segment(
+      data = five_yard_df,
+      mapping = aes(x = x, xend = x, y = -Inf, yend = 53.3),
+      color = "white"
+    ) +
+
+    # Add hash marks to field
+    geom_segment(
+      data = hash_df,
+      mapping = aes(x = x, xend = x, y = 0.5, yend = 1.5),
+      color = "white"
+    ) +
+    geom_segment(
+      data = hash_df,
+      mapping = aes(x = x, xend = x, y = 51.8, yend = 52.8),
+      color = "white"
+    ) +
+
+    # Add yard line labels to field
+    geom_text(
+      data = yard_labels_df,
+      mapping = aes(x = x, y = y, label = digits),
+      color = "white"
+    ) +
+    geom_text(
+      data = yard_labels_df,
+      mapping = aes(x = x, y = 53.3 - y, label = digits),
+      color = "white", angle = 180
+    ) +
+
+    # Create a final solid black outline for the field
+    geom_rect(
+      data = NULL,
+      aes(xmin = 10, xmax = 110, ymin = 0, ymax = 53.3),
+      fill = NA, color = "black"
+    ) +
+
+    # Add points and change colors of points in scatterplot
+    geom_point(data = df, mapping = aes) +
+    scale_color_manual(values = c("black", "slategray1", "red")) +
+
+    # Label legend
+    labs(color = "Legend") +
+
+    # Add x and y axis limits
+    lims(x = c(0, 120), y = c(-1, 59)) +
+    
+    # Add geom_text labels
+    geom_text(data = annotate_df, mapping = aes(x = 0, y = 55,
+                                                label = play_start),
+              color = "black", hjust = 0, size = text_size) +
+    geom_text(data = annotate_df, mapping = aes(x = 120, y = 55, 
+                                                label = score),
+              color = "black", hjust = 1, size = text_size) +
+    geom_text(data = annotate_df, mapping = aes(x = 60, y = 59,
+                                                label = str_wrap(playDescription, 
+                                                                 80)),
+              color = "black", hjust = 0.5, lineheight = 0.8, size = text_size) +
+    labs(title = annotate_df$title_string[1]) +
+    theme(plot.title = element_text(hjust = 0.5))
+}
+```
+
+We plot the track of each player and football in that play.
+
+```{r}
+play_id <- filtered_play_3 %>% 
+  dplyr::select(playId, gameId,offensePlayResult) %>%
+  unique() %>%
+  arrange(desc(offensePlayResult)) %>%
+  slice(1)
+
+p <- filtered_play_4 %>%
+  filter(playId == play_id$playId, gameId == play_id$gameId) %>%
+  ggfootball_for_eda(
+  aes(
+    x = x,
+    y = y,
+    color = team_2,
+    alpha = frameId
+  )
+) +
+  scale_alpha(range = c(0, 1)) +
+  guides(alpha = FALSE)
+p
+```
+
+```{r, include=FALSE}
+ggsave(filename = paste0("EDA/eda_plots/",
+                         play_id$offensePlayResult,
+                         "_yards.png"), 
+       plot = p)
+```
